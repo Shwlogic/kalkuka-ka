@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Férová cena akcie – kalkulačka</title>
+<meta name="description" content="Kalkulačka férové ceny akcie podle zisku, volného peněžního toku nebo tržeb.">
+<meta name="theme-color" content="#1A1C1F">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Férová cena">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..700&display=swap">
+<style>
+/* Tokeny z design systému „Analýzy firem“ (jen tmavé téma) */
+:root, :root[data-theme="dark"], :root[data-theme="light"] {
+  --surface:#1A1C1F; --surface-raised:#24272B; --surface-sunken:#131416;
+  --line:#4a5058; --ink:#f3f4f5; --ink-muted:#a7aeb7;
+  --blue-light:#82b8ea; --blue-deep:#2d6cae; --on-blue:#ffffff;
+  --chart-yellow:#dba80c; --chart-yellow-muted:#886e1e; --chart-grid:#3a3f45;
+  --positive:#23ae21; --negative:#c12104;
+  --space-1:4px; --space-2:8px; --space-3:16px; --space-4:24px; --space-5:40px;
+  --radius-sm:4px; --radius-md:8px; --radius-lg:12px;
+  --font-sans:"Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --surface:#1A1C1F; } }
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+*,*::before,*::after{ box-sizing:inherit; }
+html{ background:var(--surface); scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px); }
+body{ margin:0; background:var(--surface); color:var(--ink); font:400 16px/26px var(--font-sans); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; }
+a{ color:var(--blue-light); }
+:focus-visible{ outline:2px solid var(--blue-light); outline-offset:2px; }
+
+.wrap{ max-width:1160px; margin:0 auto; padding:var(--space-5) var(--space-4) 120px; }
+@media (max-width:640px){ .wrap{ padding:var(--space-4) var(--space-3) 120px; } }
+
+.display{ font:700 44px/48px var(--font-sans); letter-spacing:-.02em; margin:0; }
+.heading{ font:650 26px/32px var(--font-sans); letter-spacing:-.01em; margin:0 0 var(--space-3); }
+.subheading{ font:600 19px/26px var(--font-sans); margin:0; }
+.small{ font:400 14px/22px var(--font-sans); }
+.caption{ font:500 12px/16px var(--font-sans); letter-spacing:.01em; color:var(--ink-muted); }
+.muted{ color:var(--ink-muted); }
+@media (max-width:640px){ .display{ font-size:34px; line-height:38px; } .heading{ font-size:22px; line-height:28px; } }
+
+section{ margin-top:var(--space-5); }
+.panel{ background:var(--surface-raised); border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-4); }
+@media (max-width:640px){ .panel{ padding:var(--space-3); } }
+.phead{ display:flex; flex-wrap:wrap; gap:var(--space-2) var(--space-4); align-items:baseline; justify-content:space-between; margin-bottom:var(--space-3); }
+.phead p{ margin:0; }
+
+/* Záhlaví */
+.top{ display:flex; flex-wrap:wrap; gap:var(--space-4); align-items:flex-end; justify-content:space-between; }
+.lede{ margin:var(--space-2) 0 0; color:var(--ink-muted); max-width:62ch; }
+.scen{ display:flex; flex-wrap:wrap; gap:var(--space-2); align-items:flex-end; }
+.scen .field{ min-width:200px; }
+.status{ min-height:16px; margin:var(--space-2) 0 0; }
+
+/* Tlačítka */
+.btn{ font:600 14px/20px var(--font-sans); color:var(--ink); background:transparent; border:1px solid var(--ink-muted); border-radius:var(--radius-md); padding:10px 14px; cursor:pointer; min-height:44px; }
+.btn:hover{ background:var(--surface-raised); }
+.btn.primary{ background:var(--blue-deep); border-color:var(--blue-deep); color:var(--on-blue); }
+.btn.primary:hover{ filter:brightness(1.1); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+[hidden]{ display:none !important; }
+
+/* Pole */
+.fields{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:var(--space-3) var(--space-4); }
+.lab{ display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.lab label, .scen label{ font:500 14px/20px var(--font-sans); color:var(--ink-muted); }
+.scen label{ display:block; margin-bottom:6px; }
+.inp{ display:flex; align-items:stretch; background:var(--surface-sunken); border:1px solid var(--ink-muted); border-radius:var(--radius-md); overflow:hidden; }
+.inp:focus-within{ border-color:var(--blue-light); box-shadow:0 0 0 1px var(--blue-light); }
+.inp input, .inp select{ flex:1; min-width:0; width:100%; background:transparent; border:0; color:var(--ink); font:500 16px/24px var(--font-sans); font-variant-numeric:tabular-nums; padding:9px 12px; outline:none; }
+.inp select{ cursor:pointer; }
+.inp select option{ background:var(--surface-sunken); color:var(--ink); }
+.inp input::placeholder{ color:var(--ink-muted); opacity:.8; }
+.inp .unit{ display:flex; align-items:center; padding:0 12px; color:var(--ink-muted); background:var(--surface-raised); border-left:1px solid var(--line); font:500 14px/20px var(--font-sans); white-space:nowrap; }
+.inp.bad{ border-color:var(--negative); box-shadow:0 0 0 1px var(--negative); }
+.inp.sm{ width:140px; flex:none; }
+.inp.sm input{ padding:6px 10px; text-align:right; }
+.inp.sm .unit{ padding:0 10px; }
+
+.info{ display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; border:1px solid var(--blue-light); color:var(--blue-light); font:600 11px/1 var(--font-sans); text-decoration:none; flex:none; }
+.info:hover{ background:var(--blue-deep); border-color:var(--blue-deep); color:var(--on-blue); }
+
+/* Posuvníky */
+input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:28px; margin:6px 0 0; background:transparent; cursor:pointer; }
+input[type=range]::-webkit-slider-runnable-track{ height:4px; border-radius:2px; background:linear-gradient(to right,var(--blue-light) var(--p,50%),var(--chart-grid) var(--p,50%)); }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:20px; height:20px; margin-top:-8px; border-radius:50%; background:var(--ink); border:4px solid var(--blue-deep); }
+input[type=range]::-moz-range-track{ height:4px; border-radius:2px; background:var(--chart-grid); }
+input[type=range]::-moz-range-progress{ height:4px; border-radius:2px; background:var(--blue-light); }
+input[type=range]::-moz-range-thumb{ width:12px; height:12px; border-radius:50%; background:var(--ink); border:4px solid var(--blue-deep); }
+input[type=range]:focus-visible{ outline:2px solid var(--blue-light); outline-offset:2px; border-radius:4px; }
+.rng{ display:flex; justify-content:space-between; }
+
+/* Karty metod */
+.methods{ display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-4); }
+@media (max-width:980px){ .methods{ grid-template-columns:1fr; } }
+.mcard{ background:var(--surface-raised); border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-4) var(--space-4) var(--space-2); cursor:pointer; }
+.mcard.on{ border-color:var(--blue-light); box-shadow:inset 0 0 0 1px var(--blue-light); }
+@media (max-width:640px){ .mcard{ padding:var(--space-3) var(--space-3) var(--space-1); } }
+.mhead{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; cursor:pointer; }
+.mhead .caption{ display:block; margin-top:2px; }
+.mhead input[type=radio]{ appearance:none; -webkit-appearance:none; width:22px; height:22px; margin:2px 0 0; border-radius:50%; border:2px solid var(--ink-muted); display:grid; place-items:center; cursor:pointer; flex:none; background:transparent; }
+.mhead input[type=radio]:checked{ border-color:var(--blue-light); }
+.mhead input[type=radio]:checked::after{ content:""; width:10px; height:10px; border-radius:50%; background:var(--blue-light); }
+.rows{ margin-top:var(--space-3); }
+.row{ display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:6px 0; border-top:1px solid var(--line); }
+.rl{ display:flex; align-items:center; gap:6px; font:400 14px/20px var(--font-sans); color:var(--ink-muted); }
+.rv{ font:600 16px/24px var(--font-sans); text-align:right; }
+.chk{ display:flex; align-items:center; gap:8px; font:400 14px/20px var(--font-sans); color:var(--ink); cursor:pointer; }
+.chk input{ width:18px; height:18px; accent-color:var(--blue-light); margin:0; }
+
+/* Výsledek */
+.results{ background:var(--surface-sunken); border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-5) var(--space-4) var(--space-4); }
+@media (max-width:640px){ .results{ padding:var(--space-4) var(--space-3) var(--space-3); } }
+.stats{ display:grid; grid-template-columns:1fr 1.25fr 1fr 1fr; gap:var(--space-4); align-items:start; }
+@media (max-width:980px){ .stats{ grid-template-columns:1fr 1fr; } }
+@media (max-width:420px){ .stats{ grid-template-columns:1fr; } }
+.stat .l{ font:500 14px/20px var(--font-sans); color:var(--ink-muted); }
+.stat .fig{ font:600 34px/38px var(--font-sans); letter-spacing:-.01em; margin-top:6px; white-space:nowrap; }
+.stat .sub{ margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font:400 14px/20px var(--font-sans); color:var(--ink-muted); }
+.stat.main{ background:var(--surface-raised); border-radius:var(--radius-md); padding:var(--space-3); margin:calc(var(--space-3) * -1) 0; border-top:3px solid var(--blue-deep); }
+.stat.main .fig{ font-size:44px; line-height:48px; font-weight:700; letter-spacing:-.02em; }
+@media (max-width:980px){ .stat.main{ margin:0; } }
+@media (max-width:640px){ .stat .fig{ font-size:28px; line-height:34px; } .stat.main .fig{ font-size:36px; line-height:40px; } }
+.summary{ margin:var(--space-5) 0 0; max-width:75ch; }
+.implied{ margin:var(--space-2) 0 0; max-width:75ch; color:var(--ink-muted); }
+.implied b, .summary b{ color:var(--ink); font-weight:600; }
+
+.pill{ display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:var(--radius-sm); font:600 13px/20px var(--font-sans); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.pill.pos{ background:var(--positive); color:var(--surface-sunken); }
+.pill.neg{ background:var(--negative); color:#fff; }
+.pill.neu{ background:var(--surface-raised); color:var(--ink); border:1px solid var(--line); }
+
+.cmp{ margin-top:var(--space-4); display:grid; grid-template-columns:auto repeat(3,minmax(0,1fr)); gap:var(--space-2); align-items:stretch; }
+.cmp .cl{ align-self:center; padding-right:var(--space-2); }
+.cmpc{ font:inherit; color:var(--ink); text-align:left; background:transparent; border:1px solid var(--line); border-radius:var(--radius-md); padding:8px 12px; cursor:pointer; min-height:44px; }
+.cmpc:hover{ border-color:var(--ink-muted); }
+.cmpc.on{ border-color:var(--blue-light); }
+.cmpc .caption{ display:block; }
+.cmpc b{ font:600 16px/22px var(--font-sans); }
+@media (max-width:640px){ .cmp{ grid-template-columns:repeat(3,minmax(0,1fr)); } .cmp .cl{ grid-column:1/-1; } }
+
+.chartbox{ margin-top:var(--space-4); background:var(--surface-raised); border-radius:var(--radius-lg); padding:var(--space-4) var(--space-3) var(--space-3); }
+.chartbox .subheading{ padding:0 var(--space-2); }
+.chart{ margin-top:var(--space-3); width:100%; min-height:200px; }
+.chart svg{ display:block; max-width:100%; height:auto; }
+.chart .g{ stroke:var(--chart-grid); stroke-width:1; }
+.chart .ax{ fill:var(--ink-muted); font:500 12px var(--font-sans); font-variant-numeric:tabular-nums; }
+.chart .exp{ fill:none; stroke:var(--chart-yellow); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+.chart .req{ fill:none; stroke:var(--chart-yellow-muted); stroke-width:2; stroke-dasharray:6 5; }
+.chart .dot{ fill:var(--chart-yellow); stroke:var(--surface-raised); stroke-width:2; }
+.chart .dotm{ fill:var(--chart-yellow-muted); stroke:var(--surface-raised); stroke-width:2; }
+.chart .lb rect{ fill:var(--surface-sunken); stroke:var(--line); }
+.chart .lb text{ fill:var(--ink); font:600 12px var(--font-sans); font-variant-numeric:tabular-nums; }
+.chart .lbm rect{ fill:var(--surface-sunken); stroke:var(--chart-yellow-muted); }
+.chart .lbm text{ fill:var(--ink-muted); font:600 12px var(--font-sans); font-variant-numeric:tabular-nums; }
+.chart .empty{ padding:var(--space-4) var(--space-2); color:var(--ink-muted); }
+.legend{ display:flex; flex-wrap:wrap; gap:var(--space-2) var(--space-4); margin:var(--space-2) var(--space-2) 0; font:400 14px/22px var(--font-sans); }
+.legend span{ display:inline-flex; align-items:center; gap:8px; }
+.sw{ width:22px; height:0; border-top:3px solid var(--chart-yellow); display:inline-block; }
+.sw.m{ border-top:3px dashed var(--chart-yellow-muted); }
+.chartbox > .caption{ margin:var(--space-2) var(--space-2) 0; }
+
+/* Rozklad a upozornění */
+.two{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); }
+@media (max-width:980px){ .two{ grid-template-columns:1fr; } }
+.two .subheading{ margin-bottom:var(--space-3); }
+.dc{ display:grid; grid-template-columns:minmax(0,1.4fr) minmax(80px,1fr) auto; gap:10px var(--space-3); align-items:center; font:400 14px/20px var(--font-sans); }
+.dc .v{ text-align:right; font-weight:600; white-space:nowrap; }
+.dc .bar{ position:relative; height:12px; }
+.dc .bar::before{ content:""; position:absolute; left:50%; top:-4px; bottom:-4px; width:1px; background:var(--ink-muted); }
+.dc .bar i{ position:absolute; top:0; bottom:0; background:var(--chart-yellow); }
+.dc .bar i.pos{ border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+.dc .bar i.neg{ border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
+.dc .tot{ border-top:1px solid var(--line); padding-top:10px; font-weight:600; }
+.dcnote{ margin:var(--space-3) 0 0; }
+.warns{ list-style:none; margin:0; padding:0; display:grid; gap:12px; }
+.warns li{ display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:start; font:400 14px/22px var(--font-sans); }
+.badge{ display:inline-block; justify-self:start; min-width:52px; white-space:nowrap; text-align:center; font:600 12px/16px var(--font-sans); padding:3px 6px; border-radius:var(--radius-sm); margin-top:2px; }
+.badge.err{ background:var(--negative); color:#fff; }
+.badge.warn{ background:var(--blue-deep); color:var(--on-blue); }
+.badge.info{ border:1px solid var(--ink-muted); color:var(--ink-muted); padding:2px 5px; }
+
+/* Citlivost */
+.tscroll{ overflow-x:auto; margin-top:var(--space-3); }
+table.sens{ border-collapse:separate; border-spacing:4px; min-width:560px; width:100%; }
+.sens th{ font:500 13px/18px var(--font-sans); color:var(--ink-muted); padding:6px 8px; text-align:right; white-space:nowrap; }
+.sens thead th{ text-align:center; }
+.sens td{ background:var(--surface-sunken); border-radius:var(--radius-sm); padding:8px 10px; text-align:right; white-space:nowrap; border:1px solid transparent; }
+.sens td b{ display:block; font:600 15px/20px var(--font-sans); }
+.sens td span{ font:500 12px/16px var(--font-sans); color:var(--ink-muted); }
+.sens td.pos{ background:rgba(35,174,33,.16); }
+.sens td.neg{ background:rgba(193,33,4,.26); }
+.sens td.pos span, .sens td.neg span{ color:var(--ink); }
+.sens td.cur{ border-color:var(--blue-light); }
+.sens th.cur{ color:var(--ink); }
+
+/* Vysvětlivky */
+.expl .intro{ max-width:75ch; margin:0 0 var(--space-4); color:var(--ink-muted); }
+.expl h3{ margin:var(--space-5) 0 var(--space-2); }
+.expl h3:first-of-type{ margin-top:0; }
+.expl details{ border-top:1px solid var(--line); }
+.expl details:last-of-type{ border-bottom:1px solid var(--line); }
+.expl summary{ list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); padding:14px 0; font:600 16px/24px var(--font-sans); }
+.expl summary::-webkit-details-marker{ display:none; }
+.expl summary::after{ content:"+"; color:var(--blue-light); font:500 22px/1 var(--font-sans); flex:none; }
+.expl details[open] > summary::after{ content:"−"; }
+.expl .xb{ padding:0 0 var(--space-4); }
+.expl dl{ display:grid; grid-template-columns:150px minmax(0,75ch); gap:10px var(--space-4); margin:0; }
+.expl dt{ font:500 14px/26px var(--font-sans); color:var(--ink-muted); }
+.expl dd{ margin:0; }
+@media (max-width:640px){ .expl dl{ grid-template-columns:1fr; gap:2px; } .expl dd{ margin-bottom:10px; } }
+.expl ul{ margin:0; padding-left:1.2em; max-width:75ch; }
+.expl ul li{ margin:6px 0; }
+.formula{ background:var(--surface-sunken); border-radius:var(--radius-md); padding:var(--space-3) var(--space-4); max-width:80ch; }
+.formula ol{ margin:0; padding-left:1.3em; }
+.formula li{ margin:8px 0; }
+.formula .ex{ margin:var(--space-3) 0 0; color:var(--ink-muted); }
+.prose p{ max-width:75ch; margin:0 0 var(--space-3); }
+footer{ margin-top:var(--space-5); }
+
+/* Lišta s výsledkem */
+.sbar{ position:fixed; left:0; right:0; bottom:0; z-index:30; background:rgba(19,20,22,.96); border-top:1px solid var(--line); padding:10px var(--space-3) calc(10px + env(safe-area-inset-bottom,0px)); transform:translateY(110%); transition:transform .2s ease; }
+.sbar.show{ transform:none; }
+.sbar .in{ max-width:1160px; margin:0 auto; display:flex; flex-wrap:wrap; gap:6px var(--space-4); align-items:center; font:400 14px/22px var(--font-sans); }
+.sbar b{ font:600 18px/24px var(--font-sans); color:var(--ink); }
+.sbar .sp{ display:inline-flex; gap:8px; align-items:center; color:var(--ink-muted); }
+.sbar a{ margin-left:auto; }
+@media (max-width:640px){ .sbar a{ display:none; } }
+@media (prefers-reduced-motion:reduce){ .sbar{ transition:none; } html{ scroll-behavior:auto; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header class="top">
+  <div>
+    <h1 class="display">Férová cena akcie</h1>
+    <p class="lede">Zadejte čísla firmy a své předpoklady. Férová cena, graf i upozornění se přepočítají při každé změně.</p>
+  </div>
+  <div class="scen">
+    <div class="field">
+      <label for="scenSel">Uložené scénáře</label>
+      <div class="inp"><select id="scenSel"></select></div>
+    </div>
+    <button class="btn primary" id="saveBtn" type="button">Uložit scénář</button>
+    <button class="btn" id="delBtn" type="button">Smazat</button>
+    <button class="btn" id="resetBtn" type="button">Obnovit ukázku</button>
+    <button class="btn" id="installBtn" type="button" hidden>Nainstalovat aplikaci</button>
+  </div>
+</header>
+<p class="status caption" id="status" role="status" aria-live="polite"></p>
+
+<section aria-labelledby="h-firm">
+  <div class="panel">
+    <div class="phead">
+      <h2 class="subheading" id="h-firm">Firma</h2>
+      <p class="caption">Předvyplněná čísla jsou jen ukázka. Nahraďte je čísly zvolené firmy.</p>
+    </div>
+    <div class="fields">
+      <div class="field">
+        <div class="lab"><label for="f-name">Firma nebo ticker</label></div>
+        <div class="inp"><input id="f-name" data-k="name" autocomplete="off" placeholder="např. MSFT"></div>
+      </div>
+      <div class="field">
+        <div class="lab"><label for="f-cur">Měna</label></div>
+        <div class="inp"><select id="f-cur" data-k="currency">
+          <option value="USD">USD ($)</option><option value="EUR">EUR (€)</option><option value="CZK">CZK (Kč)</option><option value="GBP">GBP (£)</option><option value="CHF">CHF</option>
+        </select></div>
+      </div>
+      <div class="field">
+        <div class="lab"><label for="f-price">Aktuální cena</label><a class="info" href="#vys-price" aria-label="Vysvětlivka: aktuální cena">i</a></div>
+        <div class="inp"><input id="f-price" data-k="price" data-num inputmode="decimal" autocomplete="off"><span class="unit cur-sym">$</span></div>
+      </div>
+      <div class="field">
+        <div class="lab"><label for="f-shares">Počet akcií, zředěný</label><a class="info" href="#vys-shares" aria-label="Vysvětlivka: počet akcií">i</a></div>
+        <div class="inp"><input id="f-shares" data-k="shares" data-num inputmode="decimal" autocomplete="off"><span class="unit">mld.</span></div>
+      </div>
+      <div class="field">
+        <div class="lab"><label for="f-div">Dividendový výnos</label><a class="info" href="#vys-div" aria-label="Vysvětlivka: dividendový výnos">i</a></div>
+        <div class="inp"><input id="f-div" data-k="divYield" data-num inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit">%</span></div>
+      </div>
+      <div class="field">
+        <div class="lab"><label for="f-date">Data platí k</label><a class="info" href="#vys-date" aria-label="Vysvětlivka: datum dat">i</a></div>
+        <div class="inp"><input id="f-date" type="date" data-k="date"></div>
+      </div>
+    </div>
+    <p class="caption" id="mcap" style="margin:var(--space-3) 0 0"></p>
+  </div>
+</section>
+
+<section aria-labelledby="h-method">
+  <h2 class="heading" id="h-method">Metoda ocenění</h2>
+  <div class="methods">
+
+    <div class="mcard" data-method="eps">
+      <label class="mhead">
+        <span><span class="subheading">Zisk</span><span class="caption">Pro stabilně ziskové firmy. Cena = EPS × P/E.</span></span>
+        <input type="radio" name="method" value="eps" aria-label="Počítat metodou Zisk">
+      </label>
+      <div class="rows">
+        <div class="row">
+          <span class="rl">EPS za 12 měs. <a class="info" href="#vys-eps" aria-label="Vysvětlivka: EPS">i</a></span>
+          <span class="inp sm"><input data-k="eps.base" data-num inputmode="decimal" autocomplete="off" aria-label="EPS za posledních 12 měsíců"><span class="unit cur-sym">$</span></span>
+        </div>
+        <div class="row">
+          <span class="rl">Aktuální P/E <a class="info" href="#vys-pe" aria-label="Vysvětlivka: aktuální P/E">i</a></span>
+          <span class="rv" id="c-eps-mult">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Historický růst EPS ročně <a class="info" href="#vys-hist" aria-label="Vysvětlivka: historický růst">i</a></span>
+          <span class="inp sm"><input data-k="eps.hist" data-num inputmode="decimal" autocomplete="off" placeholder="nepovinné" aria-label="Historický růst EPS, procent ročně"><span class="unit">%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mcard" data-method="fcf">
+      <label class="mhead">
+        <span><span class="subheading">Volný peněžní tok</span><span class="caption">Pro firmy se stabilním kladným FCF. Cena = FCF × P/FCF.</span></span>
+        <input type="radio" name="method" value="fcf" aria-label="Počítat metodou Volný peněžní tok">
+      </label>
+      <div class="rows">
+        <div class="row">
+          <span class="rl">FCF na akcii za 12 měs. <a class="info" href="#vys-fcf" aria-label="Vysvětlivka: FCF na akcii">i</a></span>
+          <span class="inp sm"><input data-k="fcf.base" data-num inputmode="decimal" autocomplete="off" aria-label="FCF na akcii za posledních 12 měsíců"><span class="unit cur-sym">$</span></span>
+        </div>
+        <div class="row">
+          <span class="rl">SBC na akcii za 12 měs. <a class="info" href="#vys-sbc" aria-label="Vysvětlivka: SBC">i</a></span>
+          <span class="inp sm"><input data-k="fcf.sbc" data-num inputmode="decimal" autocomplete="off" placeholder="nepovinné" aria-label="SBC na akcii za posledních 12 měsíců"><span class="unit cur-sym">$</span></span>
+        </div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" data-k="fcf.subtractSbc"> Odečíst SBC od FCF</label>
+          <span class="rv small muted" id="c-fcf-used"></span>
+        </div>
+        <div class="row">
+          <span class="rl"><span id="c-fcf-ylab">FCF výnos</span> <a class="info" href="#vys-fcfy" aria-label="Vysvětlivka: FCF výnos">i</a></span>
+          <span class="rv" id="c-fcf-yield">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Podíl SBC na FCF <a class="info" href="#vys-fcfy" aria-label="Vysvětlivka: podíl SBC">i</a></span>
+          <span class="rv" id="c-fcf-sbc">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Aktuální P/FCF</span>
+          <span class="rv" id="c-fcf-mult">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Historický růst FCF ročně <a class="info" href="#vys-hist" aria-label="Vysvětlivka: historický růst">i</a></span>
+          <span class="inp sm"><input data-k="fcf.hist" data-num inputmode="decimal" autocomplete="off" placeholder="nepovinné" aria-label="Historický růst FCF, procent ročně"><span class="unit">%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mcard" data-method="rev">
+      <label class="mhead">
+        <span><span class="subheading">Tržby</span><span class="caption">Pro rychle rostoucí firmy bez stabilního zisku. Cena = tržby na akcii × P/S.</span></span>
+        <input type="radio" name="method" value="rev" aria-label="Počítat metodou Tržby">
+      </label>
+      <div class="rows">
+        <div class="row">
+          <span class="rl">Tržby za 12 měs. <a class="info" href="#vys-rev" aria-label="Vysvětlivka: tržby">i</a></span>
+          <span class="inp sm"><input data-k="rev.base" data-num inputmode="decimal" autocomplete="off" aria-label="Tržby za posledních 12 měsíců v miliardách"><span class="unit">mld.&nbsp;<span class="cur-sym">$</span></span></span>
+        </div>
+        <div class="row">
+          <span class="rl">Tržby na akcii <a class="info" href="#vys-rps" aria-label="Vysvětlivka: tržby na akcii">i</a></span>
+          <span class="rv" id="c-rev-rps">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Aktuální P/S</span>
+          <span class="rv" id="c-rev-mult">—</span>
+        </div>
+        <div class="row">
+          <span class="rl">Historický růst tržeb ročně <a class="info" href="#vys-hist" aria-label="Vysvětlivka: historický růst">i</a></span>
+          <span class="inp sm"><input data-k="rev.hist" data-num inputmode="decimal" autocomplete="off" placeholder="nepovinné" aria-label="Historický růst tržeb, procent ročně"><span class="unit">%</span></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section aria-labelledby="assumpTitle">
+  <div class="panel">
+    <div class="phead">
+      <h2 class="subheading" id="assumpTitle">Předpoklady</h2>
+      <p class="caption">Číslo můžete napsat, nebo nastavit posuvníkem. Šipky nahoru a dolů v poli mění hodnotu po krocích.</p>
+    </div>
+    <div class="fields" id="assumpFields"></div>
+  </div>
+</section>
+
+<section id="results" class="results" aria-labelledby="h-res">
+  <h2 class="heading" id="h-res">Výsledek</h2>
+  <div class="stats">
+    <div class="stat"><div class="l">Aktuální cena</div><div class="fig" id="rPrice">—</div><div class="sub" id="rPriceSub"></div></div>
+    <div class="stat main"><div class="l">Férová cena dnes</div><div class="fig" id="rFair">—</div><div class="sub" id="rFairSub"></div></div>
+    <div class="stat"><div class="l">Očekávané zhodnocení ročně</div><div class="fig" id="rIrr">—</div><div class="sub" id="rIrrSub"></div></div>
+    <div class="stat"><div class="l" id="rTargetLab">Cena na konci horizontu</div><div class="fig" id="rTarget">—</div><div class="sub" id="rTargetSub"></div></div>
+  </div>
+  <p class="summary" id="rText"></p>
+  <p class="implied small" id="rImplied"></p>
+  <div class="cmp" id="cmp"></div>
+
+  <div class="chartbox">
+    <h3 class="subheading">Vývoj ceny podle vašich předpokladů</h3>
+    <div class="chart" id="chart"></div>
+    <div class="legend">
+      <span><i class="sw"></i>Očekávaná cena</span>
+      <span><i class="sw m"></i><span id="lgReq">Cena potřebná pro požadované zhodnocení</span></span>
+    </div>
+    <p class="caption" id="chartCap"></p>
+  </div>
+</section>
+
+<section class="two">
+  <div class="panel">
+    <h2 class="subheading">Z čeho se skládá očekávané zhodnocení</h2>
+    <div id="decomp"></div>
+  </div>
+  <div class="panel">
+    <h2 class="subheading">Upozornění k předpokladům</h2>
+    <ul class="warns" id="warns"></ul>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="h-sens">
+  <h2 class="subheading" id="h-sens">Citlivost férové ceny</h2>
+  <p class="small muted" style="margin:6px 0 0;max-width:75ch">Férová cena při jiném růstu a jiném násobku, ostatní vstupy zůstávají stejné. Procento pod cenou je rozdíl proti aktuální ceně. Zelené podbarvení a znaménko + znamená férovou cenu nad aktuální cenou, červené a − pod ní. Modrý rámeček jsou vaše současné předpoklady.</p>
+  <div class="tscroll"><table class="sens" id="sens"></table></div>
+</section>
+
+<section class="expl" id="vysvetlivky" aria-labelledby="h-expl">
+  <h2 class="heading" id="h-expl">Vysvětlivky: kde vzít čísla</h2>
+  <p class="intro">U každého údaje najdete, co znamená, kde ho vzít a na co si dát pozor. Nejspolehlivějším zdrojem jsou vždy výkazy firmy: u amerických firem čtvrtletní zprávy 10-Q a výroční zprávy 10-K na SEC EDGAR, u ostatních výroční a čtvrtletní zprávy v sekci pro investory na webu firmy. Agregátory jako stockanalysis.com, macrotrends.net, Yahoo Finance nebo Morningstar jsou pohodlnější, ale jejich čísla se mezi sebou mohou lišit podle použitých definic a období. U důležitých čísel je dobré porovnat dva zdroje.</p>
+
+  <h3 class="subheading">Firma</h3>
+  <details id="vys-price"><summary>Aktuální cena</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Poslední cena akcie na burze.</dd>
+    <dt>Kde to najdete</dt><dd>U brokera, na Yahoo Finance, Google Finance nebo na webu burzy.</dd>
+    <dt>Na co si dát pozor</dt><dd>Cena a všechna ostatní čísla (EPS, FCF, tržby) musí být ve stejné měně a vztažená ke stejné akcii. Pozor na ADR, tedy akcie zahraničních firem obchodované v USA: jedna ADR může odpovídat více kmenovým akciím (například u TSMC jedna ADR odpovídá pěti akciím) a firma může vykazovat v jiné měně. EPS z výkazu je pak potřeba přepočítat na jednu ADR a na měnu ceny.</dd>
+  </dl></div></details>
+  <details id="vys-shares"><summary>Počet akcií, zředěný</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Počet akcií včetně opcí a dalších nástrojů, které se mohou na akcie přeměnit, v miliardách. 250 milionů akcií je 0,25 mld.</dd>
+    <dt>Kde to najdete</dt><dd>Ve výkazu zisku a ztráty jako vážený průměr zředěných akcií (diluted weighted average shares), nebo u agregátorů v přehledu firmy.</dd>
+    <dt>K čemu slouží</dt><dd>Kalkulačka ho potřebuje jen pro metodu Tržby (přepočet tržeb na akcii) a pro tržní kapitalizaci.</dd>
+    <dt>Na co si dát pozor</dt><dd>Miliony vs. miliardy. Po splitu musí být cena i počet akcií už po splitu.</dd>
+  </dl></div></details>
+  <details id="vys-div"><summary>Dividendový výnos</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Roční dividenda na akcii vydělená aktuální cenou.</dd>
+    <dt>Kde to najdete</dt><dd>Sečtěte běžné dividendy za posledních 12 měsíců a vydělte cenou, nebo převezměte z agregátoru či od brokera. Když firma dividendu nevyplácí, nechte 0.</dd>
+    <dt>Na co si dát pozor</dt><dd>Mimořádné jednorázové dividendy nezapočítávejte. Zpětné odkupy akcií sem nepatří, projeví se v růstu hodnot na akcii. Model předpokládá, že dividenda roste stejným tempem jako zvolená metrika.</dd>
+  </dl></div></details>
+  <details id="vys-date"><summary>Data platí k</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Datum, ke kterému platí cena a výsledky firmy. Slouží pro popisky grafu. Když jsou data starší než měsíc, kalkulačka na to upozorní, protože cena i výsledky se mezitím mohly změnit.</dd>
+  </dl></div></details>
+
+  <h3 class="subheading">Metoda Zisk</h3>
+  <details id="vys-eps"><summary>EPS za posledních 12 měsíců</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Čistý zisk na jednu akcii za poslední čtyři čtvrtletí (TTM), ve zředěné verzi (diluted EPS).</dd>
+    <dt>Kde to najdete</dt><dd>Sečtěte zředěné EPS z posledních čtyř čtvrtletních výkazů. Čtvrté čtvrtletí se u amerických firem dopočítá z výroční zprávy 10-K (celý rok minus první tři čtvrtletí). Pohodlněji: agregátory uvádějí EPS za posledních 12 měsíců přímo (často označené TTM).</dd>
+    <dt>Na co si dát pozor</dt><dd>Rozlišujte účetní (GAAP) a upravené (adjusted, non-GAAP) EPS. Upravené bývá vyšší, protože vynechává například odměny v akciích nebo odpisy nehmotného majetku z akvizic. Použít jde obojí, ale konzistentně: i P/E na konci horizontu musí být počítané ze stejné verze. Jednorázové položky (prodej divize, daňové efekty, odpisy goodwillu) zisk zkreslí nahoru i dolů. U cyklických firem (suroviny, polovodiče, automobilky) je zisk na vrcholu cyklu nadsazený a P/E proto vypadá nízko.</dd>
+  </dl></div></details>
+  <details id="vys-pe"><summary>Aktuální P/E</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Počítá se samo: aktuální cena ÷ EPS. Říká, kolik let dnešního zisku zaplatíte cenou akcie.</dd>
+    <dt>Kontrola</dt><dd>Porovnejte s P/E u agregátoru. Když se výrazně liší, máte nejspíš jinou verzi EPS (GAAP vs. upravené) nebo jiné období.</dd>
+  </dl></div></details>
+  <details id="vys-hist"><summary>Historický růst (EPS, FCF, tržeb)</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Průměrné roční tempo růstu za posledních 3–5 let (CAGR). Údaj je nepovinný a slouží jen ke kontrole, jestli váš předpoklad není mimo dosavadní realitu.</dd>
+    <dt>Jak ho spočítat</dt><dd>CAGR = (hodnota dnes ÷ hodnota před N lety)<sup>1/N</sup> − 1. Příklad: EPS vzrostlo za 5 let z 2,00 na 3,23 → (3,23 ÷ 2,00)<sup>1/5</sup> − 1 ≈ 10,1 % ročně.</dd>
+    <dt>Na co si dát pozor</dt><dd>Meziroční změna za jediný rok (třeba +34 %) bývá zkreslená nízkou základnou nebo jednorázovými vlivy. Proto víceletý průměr. Vyhněte se také obdobím, kdy byl zisk záporný – CAGR pak nedává smysl.</dd>
+  </dl></div></details>
+
+  <h3 class="subheading">Metoda Volný peněžní tok</h3>
+  <details id="vys-fcf"><summary>FCF na akcii</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Volný peněžní tok = peněžní tok z provozní činnosti − kapitálové výdaje (capex), za posledních 12 měsíců, vydělený zředěným počtem akcií.</dd>
+    <dt>Kde to najdete</dt><dd>Ve výkazu peněžních toků (cash flow statement) ve čtvrtletních a výročních zprávách. Agregátory uvádějí free cash flow celkem i na akcii.</dd>
+    <dt>Na co si dát pozor</dt><dd>Agregátory definují FCF různě, někdo odečítá i splátky leasingů nebo akvizice. Pracovní kapitál může FCF v jednom roce výrazně zvednout nebo snížit, u kolísavého FCF zvažte průměr za 2–3 roky. U bank a pojišťoven FCF nedává smysl.</dd>
+  </dl></div></details>
+  <details id="vys-sbc"><summary>SBC na akcii</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Odměny zaměstnancům v akciích (stock-based compensation). Ve výkazu peněžních toků se přičítají zpět jako nepeněžní náklad, takže FCF zvyšují. Akcionáře ale stojí peníze – buď ředěním, nebo zpětnými odkupy, které ředění vyrovnávají.</dd>
+    <dt>Kde to najdete</dt><dd>Ve výkazu peněžních toků na řádku stock-based compensation, za posledních 12 měsíců, vydělené zředěným počtem akcií.</dd>
+    <dt>Na co si dát pozor</dt><dd>U technologických firem může SBC tvořit velkou část FCF. Se zaškrtnutým „Odečíst SBC od FCF“ počítá kalkulačka s FCF − SBC, což je konzervativnější. Pokud ale cílový P/FCF přebíráte z historie, kde se SBC neodečítalo, vyjde férová cena nižší, než by odpovídalo historickému ocenění.</dd>
+  </dl></div></details>
+  <details id="vys-fcfy"><summary>FCF výnos a podíl SBC na FCF</summary><div class="xb"><dl>
+    <dt>FCF výnos</dt><dd>FCF na akcii ÷ cena, tedy převrácená hodnota P/FCF. Při zaškrtnutém odečtu SBC se počítá z FCF − SBC.</dd>
+    <dt>Podíl SBC na FCF</dt><dd>SBC ÷ FCF. Ukazuje, jakou část vykázaného FCF „spolknou“ odměny v akciích. Jiné nástroje mohou podobný ukazatel počítat jinak (například vůči tržní kapitalizaci), proto čísla nemusí sedět.</dd>
+  </dl></div></details>
+
+  <h3 class="subheading">Metoda Tržby</h3>
+  <details id="vys-rev"><summary>Tržby za posledních 12 měsíců</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Tržby (revenue) za poslední čtyři čtvrtletí, v miliardách měny, ve které zadáváte cenu.</dd>
+    <dt>Kde to najdete</dt><dd>Ve výkazu zisku a ztráty, nebo u agregátorů jako tržby za posledních 12 měsíců (TTM).</dd>
+    <dt>Na co si dát pozor</dt><dd>Metoda se hodí pro rychle rostoucí firmy, které ještě nejsou stabilně ziskové. Nebere ohled na marže ani na dluh: u zadlužené firmy může P/S férovou cenu nadsadit. Přesnější by bylo EV/Sales, které tahle kalkulačka nepočítá.</dd>
+  </dl></div></details>
+  <details id="vys-rps"><summary>Tržby na akcii a aktuální P/S</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Počítá se samo: tržby na akcii = tržby ÷ počet akcií. P/S = cena ÷ tržby na akcii, což je totéž jako tržní kapitalizace ÷ tržby.</dd>
+  </dl></div></details>
+
+  <h3 class="subheading">Předpoklady</h3>
+  <details id="vys-growth"><summary>Meziroční růst</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Průměrné roční tempo, jakým poroste zvolená metrika (EPS, FCF na akcii nebo tržby) po celý horizont.</dd>
+    <dt>Kde hledat oporu</dt><dd>Konsenzus analytiků na agregátorech (obvykle na 1–3 roky dopředu, delší odhady jsou méně spolehlivé), výhled vedení firmy (guidance) a historický CAGR.</dd>
+    <dt>Na co si dát pozor</dt><dd>Růst EPS se skládá z růstu tržeb, změny marží a zpětných odkupů. Když má EPS růst o 15 % ročně, ale tržby jen o 5 %, musí se výrazně zlepšovat marže, nebo firma musí hodně odkupovat akcie. S rostoucí velikostí firmy růst obvykle zpomaluje a udržet růst zisku nad 20 % ročně po řadu let se podaří jen malé části firem. U metody Tržby zadáváte růst celkových tržeb, vliv odkupů nastavíte zvlášť.</dd>
+  </dl></div></details>
+  <details id="vys-mult"><summary>Násobek na konci horizontu (P/E, P/FCF, P/S)</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Za kolik let zisku (FCF, tržeb) bude trh firmu oceňovat na konci horizontu.</dd>
+    <dt>Kde to najdete</dt><dd>Historický průměr násobku firmy za 5–10 let (agregátory mají grafy historického P/E, P/FCF i P/S), případně průměr srovnatelných firem v odvětví.</dd>
+    <dt>Na co si dát pozor</dt><dd>Na konci horizontu bude firma starší a obvykle poroste pomaleji, proto bývá rozumné počítat spíš s nižším násobkem než dnes. Když zadáte vyšší násobek, než je aktuální, část zhodnocení stojí jen na tom, že trh bude firmu oceňovat dráž – přesně to ukazuje rozklad očekávaného zhodnocení. Pro orientaci: dlouhodobý průměr P/E indexu S&amp;P 500 (data od roku 1871) je zhruba 15–16, v posledních třech dekádách byl ale výrazně vyšší.</dd>
+  </dl></div></details>
+  <details id="vys-required"><summary>Požadované roční zhodnocení</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Kolik procent ročně chcete z investice minimálně vydělat. Kalkulačka jím převádí budoucí cenu na dnešní hodnotu (diskontuje).</dd>
+    <dt>Jak ho zvolit</dt><dd>Čím rizikovější firma, tím vyšší sazba. Pro orientaci: americký akciový trh (S&amp;P 500) vydělal za posledních zhruba sto let v průměru kolem 10 % ročně včetně dividend, po odečtení inflace zhruba 7 %. Je to historický průměr, ne záruka.</dd>
+    <dt>Na co si dát pozor</dt><dd>Nízká sazba férovou cenu výrazně zvyšuje. Sazba i růst musí být ve stejných jednotkách: pokud je růst nominální (bez odečtu inflace), musí být nominální i požadované zhodnocení.</dd>
+  </dl></div></details>
+  <details id="vys-horizon"><summary>Horizont</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Za kolik let počítáte cílovou cenu. Běžně se používá 5 let. Čím delší horizont, tím nejistější je odhad růstu i násobku.</dd>
+  </dl></div></details>
+  <details id="vys-sharechange"><summary>Roční změna počtu akcií (jen metoda Tržby)</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>O kolik procent se ročně mění počet akcií. Záporné číslo znamená zpětné odkupy (tržby na akcii rostou rychleji než tržby), kladné znamená ředění (SBC, emise nových akcií).</dd>
+    <dt>Kde to najdete</dt><dd>Porovnejte zředěný počet akcií dnes a před 3–5 lety a spočtěte CAGR stejně jako u historického růstu.</dd>
+    <dt>Proč jen u Tržeb</dt><dd>EPS a FCF na akcii už vliv odkupů a ředění obsahují, takže u metod Zisk a FCF se nezadává.</dd>
+  </dl></div></details>
+  <details id="vys-margin"><summary>Čistá marže na konci horizontu (jen metoda Tržby)</summary><div class="xb"><dl>
+    <dt>Co to je</dt><dd>Čistý zisk ÷ tržby, kterého má firma podle vás dosáhnout na konci horizontu. Údaj je nepovinný.</dd>
+    <dt>K čemu slouží</dt><dd>Kalkulačka z něj spočítá, jakému P/E cílový P/S odpovídá: P/E = P/S ÷ marže. Příklad: P/S 6 při marži 20 % odpovídá P/E 30. Pomáhá odhalit, jestli cílový P/S není příliš optimistický.</dd>
+  </dl></div></details>
+
+  <h3 class="subheading">Časté chyby</h3>
+  <ul class="small" style="font-size:16px;line-height:26px">
+    <li>Míchání měn (cena v USD, výsledky v EUR) nebo ADR bez přepočtu na počet akcií.</li>
+    <li>Upravené EPS dnes a historický průměr P/E počítaný z účetního EPS (nebo naopak).</li>
+    <li>Miliony místo miliard u tržeb a počtu akcií.</li>
+    <li>Růst z jednoho výjimečného roku použitý na celý horizont.</li>
+    <li>Záporný nebo mimořádně nízký zisk v metodě Zisk.</li>
+    <li>Cílový násobek z období, kdy byl celý trh výjimečně drahý.</li>
+    <li>Stará cena nebo data před splitem či před posledními výsledky.</li>
+  </ul>
+</section>
+
+<section class="panel" aria-labelledby="h-calc">
+  <h2 class="heading" id="h-calc">Jak se to počítá</h2>
+  <div class="formula">
+    <ol>
+      <li>Metrika za N let = metrika dnes × (1 + růst)<sup>N</sup>. U metody Tržby se růst tržeb na akcii počítá jako (1 + růst tržeb) ÷ (1 + změna počtu akcií) − 1.</li>
+      <li>Cena za N let = metrika za N let × násobek na konci horizontu.</li>
+      <li>Férová cena = cena za N let ÷ (1 + požadované zhodnocení)<sup>N</sup> + současná hodnota dividend.</li>
+      <li>Očekávané zhodnocení = (cena za N let ÷ aktuální cena)<sup>1/N</sup> − 1. S dividendami jde o vnitřní výnosové procento (IRR).</li>
+      <li>Implikovaný růst = růst, při kterém férová cena vyjde přesně jako aktuální cena.</li>
+      <li>Rozklad: 1 + zhodnocení ≈ (1 + růst metriky) × (1 + změna násobku) + dividendy, kde změna násobku = (násobek na konci ÷ aktuální násobek)<sup>1/N</sup> − 1.</li>
+    </ol>
+    <p class="ex small">Příklad s ukázkovými čísly: EPS 3,23 $, růst 9 %, P/E 20, horizont 5 let, požadované zhodnocení 7 %. EPS za 5 let = 3,23 × 1,09<sup>5</sup> ≈ 4,97 $. Cena za 5 let ≈ 4,97 × 20 ≈ 99,40 $. Férová cena ≈ 99,40 ÷ 1,07<sup>5</sup> ≈ 70,87 $.</p>
+  </div>
+</section>
+
+<section class="prose" aria-labelledby="h-lim">
+  <h2 class="heading" id="h-lim">Omezení modelu</h2>
+  <p>Model předpokládá stejný růst každý rok a jediný násobek na konci horizontu. Skutečné výsledky i ocenění kolísají a cesta k cílové ceně nebude rovná.</p>
+  <p>Dluh a hotovost nezohledňuje přímo. P/E a P/FCF je obsahují nepřímo přes úroky, P/S vůbec. U zadlužených firem je proto metoda Tržby nejméně spolehlivá.</p>
+  <p>Výsledek je jen tak dobrý jako vstupy. Malá změna růstu nebo násobku posune férovou cenu o desítky procent, jak ukazuje tabulka citlivosti. Daně, poplatky a měnové riziko model nepočítá.</p>
+  <p>Kalkulačka počítá jen z vašich předpokladů. Nejde o investiční doporučení.</p>
+</section>
+
+<footer class="caption">Uložené scénáře a poslední zadání se ukládají jen v tomto zařízení a prohlížeči, na jiném zařízení je neuvidíte. Na iPhonu má aplikace přidaná na plochu vlastní úložiště oddělené od Safari. Nic z toho, co zadáte, se nikam neodesílá.</footer>
+</main>
+
+<div class="sbar" id="sbar"><div class="in" id="sbIn"></div></div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(s, r){ return (r||document).querySelector(s); };
+var $$ = function(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+
+var SYM = { USD:'$', EUR:'€', CZK:'Kč', GBP:'£', CHF:'CHF' };
+var LS_STATE = 'fvcalc:v1:state', LS_SCEN = 'fvcalc:v1:scenarios';
+
+function todayIso(){ var d=new Date(); var m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+dd; }
+
+var DEFAULTS = {
+  name:'', currency:'USD', price:'69,94', shares:'4,163', divYield:'0', date:todayIso(),
+  method:'eps', required:'7', horizon:'5',
+  eps:{ base:'3,23', hist:'', growth:'9', multiple:'20' },
+  fcf:{ base:'2,64', sbc:'', hist:'', subtractSbc:true, growth:'9', multiple:'25' },
+  rev:{ base:'48,37', hist:'', growth:'9', multiple:'6', shareChange:'0', endMargin:'' }
+};
+
+var MET = {
+  eps:{ label:'Zisk', short:'EPS', gen:'EPS', verb:'poroste', mult:'P/E', growthLabel:'Meziroční růst EPS', multLabel:'P/E na konci horizontu', g:[-10,40,0.5], m:[3,60,0.5], hiMult:35 },
+  fcf:{ label:'Volný peněžní tok', short:'FCF na akcii', gen:'FCF na akcii', verb:'poroste', mult:'P/FCF', growthLabel:'Meziroční růst FCF na akcii', multLabel:'P/FCF na konci horizontu', g:[-10,40,0.5], m:[3,60,0.5], hiMult:40 },
+  rev:{ label:'Tržby', short:'tržby na akcii', gen:'tržby', verb:'porostou', mult:'P/S', growthLabel:'Meziroční růst tržeb', multLabel:'P/S na konci horizontu', g:[-10,60,0.5], m:[0.2,30,0.1], hiMult:12 }
+};
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function merge(def, v){
+  var out = clone(def);
+  if(!v || typeof v!=='object') return out;
+  Object.keys(def).forEach(function(k){
+    if(v[k]===undefined || v[k]===null) return;
+    if(def[k] && typeof def[k]==='object') out[k]=merge(def[k], v[k]);
+    else out[k]=v[k];
+  });
+  return out;
+}
+function getP(o,p){ return p.split('.').reduce(function(a,k){ return a==null?undefined:a[k]; }, o); }
+function setP(o,p,v){ var ks=p.split('.'), a=o; for(var i=0;i<ks.length-1;i++) a=a[ks[i]]; a[ks[ks.length-1]]=v; }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function num(v){
+  if(v===undefined || v===null) return NaN;
+  if(typeof v==='number') return v;
+  var s=String(v).trim().replace(/[\s\u00a0]/g,'').replace(/\u2212/g,'-').replace(',', '.');
+  if(!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+  return parseFloat(s);
+}
+
+/* Formátování */
+function nf(v, d){ return new Intl.NumberFormat('cs-CZ',{minimumFractionDigits:d, maximumFractionDigits:d}).format(v).replace(/-/g,'\u2212'); }
+function nft(v, maxd){ return new Intl.NumberFormat('cs-CZ',{minimumFractionDigits:0, maximumFractionDigits:maxd}).format(v).replace(/-/g,'\u2212'); }
+function sym(){ return SYM[S.currency] || '$'; }
+function money(v){ return isFinite(v) ? nf(v,2)+'\u00a0'+sym() : '—'; }
+function pct(x, d, signed){ if(!isFinite(x)) return '—'; d = d===undefined?2:d; if(Math.abs(x*100) < 0.5*Math.pow(10,-d)) x=0; var s = nf(x*100, d); if(signed && x*100 >= 0.5*Math.pow(10,-d)) s='+'+s; return s+'\u00a0%'; }
+function pp(x){ if(Math.abs(x*100)<0.005) x=0; var s=nf(x*100,2); if(x*100>=0.005) s='+'+s; return s+'\u00a0p.\u00a0b.'; }
+function mult(v){ return isFinite(v) ? nf(v,2) : '—'; }
+function multT(v){ return isFinite(v) ? nft(v,2) : '—'; }
+function fmtIn(v){ return nft(Math.round(v*1000)/1000, 3).replace(/\u00a0/g,'').replace(/\u2212/g,'-'); }
+function yw(n){ return n===1?'rok':(n>=2&&n<=4?'roky':'let'); }
+function za(n){ return n===1?'za 1 rok':'za '+n+' '+yw(n); }
+function pill(x, text){
+  var cls = !isFinite(x) ? 'neu' : (Math.abs(x) < 0.00005 ? 'neu' : (x>0?'pos':'neg'));
+  var arrow = cls==='pos' ? '▲' : (cls==='neg' ? '▼' : '');
+  return '<span class="pill '+cls+'">'+(arrow?'<span aria-hidden="true">'+arrow+'</span> ':'')+text+'</span>';
+}
+function dateObj(){ var d = new Date((S.date||'')+'T12:00:00'); return isNaN(d) ? new Date() : d; }
+function dateCs(d){ return d.getDate()+'.\u00a0'+(d.getMonth()+1)+'.\u00a0'+d.getFullYear(); }
+
+/* Model */
+function solveIrr(P0, divs, Pn, n){
+  var f=function(x){ var s=0; for(var t=1;t<=n;t++) s+=divs[t-1]/Math.pow(1+x,t); return s + Pn/Math.pow(1+x,n) - P0; };
+  var lo=-0.99, hi=10;
+  if(f(lo)<0) return lo; if(f(hi)>0) return hi;
+  for(var i=0;i<200;i++){ var mid=(lo+hi)/2; if(f(mid)>0) lo=mid; else hi=mid; }
+  return (lo+hi)/2;
+}
+
+function compute(st, method, ov){
+  ov = ov || {};
+  var ms = st[method], mt = MET[method], errs = [];
+  var P0 = num(st.price), n = Math.round(num(st.horizon)), r = num(st.required)/100;
+  var dRaw = num(st.divYield), d = isFinite(dRaw) ? dRaw/100 : 0;
+  var g = (ov.g!==undefined ? ov.g : num(ms.growth))/100;
+  var M = ov.M!==undefined ? ov.M : num(ms.multiple);
+  var base = NaN, shareCh = 0;
+  if(!(P0>0)) errs.push('Zadejte aktuální cenu větší než 0.');
+  if(method==='eps'){
+    base = num(ms.base);
+    if(!isFinite(base)) errs.push('Zadejte EPS za posledních 12 měsíců.');
+    else if(base<=0) errs.push('EPS je nulové nebo záporné, výpočet přes P/E proto nedává smysl. Zkuste metodu Tržby, případně FCF.');
+  }
+  if(method==='fcf'){
+    var f = num(ms.base), sb = num(ms.sbc);
+    base = f - (ms.subtractSbc && isFinite(sb) ? sb : 0);
+    if(!isFinite(f)) errs.push('Zadejte FCF na akcii za posledních 12 měsíců.');
+    else if(base<=0) errs.push(ms.subtractSbc && isFinite(sb) ? 'FCF po odečtení SBC je nulový nebo záporný, výpočet přes P/FCF nedává smysl.' : 'FCF je nulový nebo záporný, výpočet přes P/FCF nedává smysl.');
+  }
+  if(method==='rev'){
+    var rv = num(ms.base), sh = num(st.shares), sc = num(ms.shareChange);
+    if(!(rv>0)) errs.push('Zadejte tržby za posledních 12 měsíců.');
+    if(!(sh>0)) errs.push('Pro metodu Tržby vyplňte počet akcií.');
+    base = rv/sh;
+    shareCh = isFinite(sc) ? sc/100 : 0;
+    if(shareCh<=-1) errs.push('Roční změna počtu akcií musí být vyšší než −100 %.');
+  }
+  if(!isFinite(g)) errs.push('Zadejte předpokládaný meziroční růst.');
+  else if(g<=-1) errs.push('Růst musí být vyšší než −100 %.');
+  if(!(M>0)) errs.push('Zadejte '+mt.mult+' na konci horizontu větší než 0.');
+  if(!isFinite(r)) errs.push('Zadejte požadované roční zhodnocení.');
+  else if(r<=-1) errs.push('Požadované zhodnocení musí být vyšší než −100 %.');
+  if(!(n>=1 && n<=30)) errs.push('Horizont musí být celé číslo od 1 do 30 let.');
+  if(errs.length) return { ok:false, errs:errs, base:base, P0:P0 };
+
+  var gps = (1+g)/(1+shareCh) - 1;
+  var metricN = base*Math.pow(1+gps, n);
+  var Pn = metricN*M;
+  var D0 = P0*d, divs=[], pvDiv=0;
+  for(var t=1;t<=n;t++){ var Dt=D0*Math.pow(1+gps,t); divs.push(Dt); pvDiv += Dt/Math.pow(1+r,t); }
+  var pvPn = Pn/Math.pow(1+r,n);
+  var fv = pvPn + pvDiv;
+  var priceCagr = Math.pow(Pn/P0, 1/n) - 1;
+  var irr = d>0 ? solveIrr(P0, divs, Pn, n) : priceCagr;
+  var curMult = P0/base;
+  var multCh = Math.pow(M/curMult, 1/n) - 1;
+  return { ok:true, P0:P0, n:n, r:r, d:d, g:g, gps:gps, M:M, base:base, metricN:metricN, Pn:Pn, fv:fv, pvDiv:pvDiv, pvPn:pvPn,
+           priceCagr:priceCagr, irr:irr, curMult:curMult, multCh:multCh, shareCh:shareCh, method:method };
+}
+
+function impliedGrowth(st, method){
+  var f=function(gp){ var x=compute(st, method, {g:gp}); return x.ok ? x.fv - x.P0 : NaN; };
+  var lo=-95, hi=300, flo=f(lo), fhi=f(hi);
+  if(!isFinite(flo) || !isFinite(fhi)) return { v:NaN };
+  if(flo>0) return { v:lo/100, below:true };
+  if(fhi<0) return { v:hi/100, above:true };
+  for(var i=0;i<120;i++){ var mid=(lo+hi)/2; if(f(mid)>0) hi=mid; else lo=mid; }
+  return { v:(lo+hi)/200 };
+}
+
+/* Upozornění */
+function warnings(st, method, res){
+  var w=[], ms=st[method], mt=MET[method];
+  var age = (Date.now() - dateObj().getTime())/86400000;
+  if(!res.ok){ res.errs.forEach(function(e){ w.push(['err',e]); }); return w; }
+  if(age>31) w.push(['warn','Data jsou k '+dateCs(dateObj())+', tedy starší než měsíc. Cena i výsledky firmy se mohly změnit.']);
+  if(age<-1) w.push(['info','Datum dat je v budoucnosti. Zkontrolujte ho.']);
+  var gp=res.g*100, hist=num(ms.hist);
+  if(gp>20 && res.n>=5) w.push(['warn','Růst '+pct(res.g,1)+' ročně po dobu '+res.n+' '+yw(res.n)+' udrží jen malá část firem. Ověřte, že to podporuje vývoj tržeb, marží a odhady analytiků.']);
+  else if(gp>15 && res.n>=5) w.push(['info','Růst '+pct(res.g,1)+' ročně po dobu '+res.n+' '+yw(res.n)+' je ambiciózní. S rostoucí velikostí firmy růst obvykle zpomaluje.']);
+  if(isFinite(hist) && gp>hist+2) w.push(['warn','Předpokládaný růst ('+pct(res.g,1)+') je vyšší než historický ('+nft(hist,2)+'\u00a0%). Co by mělo růst zrychlit?']);
+  if(!isFinite(hist)) w.push(['info','Historický růst není vyplněný, takže předpoklad růstu nemá s čím porovnat.']);
+  if(gp<0) w.push(['info','Počítáte s poklesem '+mt.gen+' o '+pct(-res.g,1)+' ročně.']);
+  var ratio = res.M/res.curMult;
+  if(ratio>1.15) w.push(['warn','Počítáte s růstem násobku '+mt.mult+' z '+mult(res.curMult)+' na '+multT(res.M)+'. To samo přidává zhruba '+pct(res.multCh,1)+' ročně ke zhodnocení jen z toho, že trh bude firmu oceňovat dráž.']);
+  else if(ratio<0.6) w.push(['info','Cílový '+mt.mult+' ('+multT(res.M)+') je výrazně pod aktuálním ('+mult(res.curMult)+'). To je konzervativní, ale ověřte, jestli aktuální násobek nezkresluje dočasně nízká nebo vysoká hodnota '+mt.gen+'.']);
+  if(res.M>mt.hiMult) w.push(['warn',mt.mult+' '+multT(res.M)+' na konci horizontu znamená, že trh bude firmu i za '+res.n+' '+yw(res.n)+' oceňovat jako rychle rostoucí.']);
+  if(method==='eps' && (res.curMult>60 || res.curMult<6)) w.push(['info','Aktuální P/E je '+mult(res.curMult)+'. Takové P/E často znamená dočasně '+(res.curMult>60?'stlačený':'nafouknutý')+' zisk (jednorázové položky, vrchol nebo dno cyklu). Zkontrolujte, jestli je EPS „normální“.']);
+  if(res.r<0.06) w.push(['warn','Požadované zhodnocení '+pct(res.r,1)+' je nízké a férovou cenu výrazně zvyšuje. Akcie nesou vyšší riziko než státní dluhopisy, proto se obvykle volí vyšší sazba.']);
+  if(res.r>0.2) w.push(['info','Požadované zhodnocení nad 20 % ročně je velmi přísné. Férovou cenou pak projde jen málokterá firma.']);
+  if(res.n>10) w.push(['info','Horizont '+res.n+' let: odhad růstu i násobku je na takovou dobu velmi nejistý.']);
+  if(method==='fcf'){
+    var f=num(ms.base), s=num(ms.sbc);
+    if(isFinite(s) && f>0 && s/f>0.1 && !ms.subtractSbc) w.push(['warn','SBC tvoří '+pct(s/f,1)+' FCF a není odečtené. FCF pak nadhodnocuje peníze, které akcionářům skutečně zbývají.']);
+    if(!isFinite(s)) w.push(['info','SBC není vyplněné. U technologických firem může tvořit velkou část FCF.']);
+  }
+  if(method==='rev'){
+    var em=num(ms.endMargin);
+    if(isFinite(em) && em>0){
+      var pe=res.M/(em/100);
+      w.push([pe>35?'warn':'info', 'P/S '+multT(res.M)+' při čisté marži '+nft(em,2)+'\u00a0% odpovídá P/E '+nf(pe,1)+(pe>35?'. To je vysoké ocenění i pro kvalitní firmu.':'.')]);
+    } else {
+      w.push(['info','Metoda Tržby nebere ohled na ziskovost ani dluh. Vyplňte čistou marži na konci horizontu a uvidíte, jakému P/E cílový P/S odpovídá.']);
+    }
+  }
+  if(res.d>0 && method==='eps'){
+    var payout = res.P0*res.d/res.base;
+    if(payout>1) w.push(['warn','Dividenda na akcii je vyšší než zisk na akcii (výplatní poměr '+pct(payout,0)+'). Taková dividenda nemusí být udržitelná.']);
+  }
+  return w;
+}
+
+/* Stav */
+function lsGet(k){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+var S = merge(DEFAULTS, lsGet(LS_STATE));
+
+/* Předpoklady */
+function sliderField(k, label, unit, rng, anchor, placeholder){
+  var id='a-'+k.replace('.','-');
+  var v=getP(S,k); var nv=num(v);
+  var cl=isFinite(nv)?Math.min(rng[1],Math.max(rng[0],nv)):rng[0];
+  return '<div class="field">'+
+    '<div class="lab"><label for="'+id+'">'+label+'</label><a class="info" href="#'+anchor+'" aria-label="Vysvětlivka: '+esc(label)+'">i</a></div>'+
+    '<div class="inp"><input id="'+id+'" data-k="'+k+'" data-num data-step="'+rng[2]+'" inputmode="decimal" autocomplete="off" value="'+esc(v==null?'':v)+'"'+(placeholder?' placeholder="'+placeholder+'"':'')+'>'+(unit?'<span class="unit">'+unit+'</span>':'')+'</div>'+
+    '<input type="range" data-k="'+k+'" min="'+rng[0]+'" max="'+rng[1]+'" step="'+rng[2]+'" value="'+cl+'" aria-label="'+esc(label)+', posuvník">'+
+    '<div class="rng caption"><span>'+nft(rng[0],1)+'</span><span>'+nft(rng[1],1)+'</span></div>'+
+  '</div>';
+}
+function plainField(k, label, unit, anchor, placeholder){
+  var id='a-'+k.replace('.','-'), v=getP(S,k);
+  return '<div class="field">'+
+    '<div class="lab"><label for="'+id+'">'+label+'</label><a class="info" href="#'+anchor+'" aria-label="Vysvětlivka: '+esc(label)+'">i</a></div>'+
+    '<div class="inp"><input id="'+id+'" data-k="'+k+'" data-num data-step="1" inputmode="decimal" autocomplete="off" value="'+esc(v==null?'':v)+'"'+(placeholder?' placeholder="'+placeholder+'"':'')+'>'+(unit?'<span class="unit">'+unit+'</span>':'')+'</div>'+
+  '</div>';
+}
+function buildAssump(){
+  var m=S.method, mt=MET[m], h=[];
+  h.push(sliderField(m+'.growth', mt.growthLabel, '%', mt.g, 'vys-growth'));
+  h.push(sliderField(m+'.multiple', mt.multLabel, '×', mt.m, 'vys-mult'));
+  h.push(sliderField('required', 'Požadované roční zhodnocení', '%', [3,20,0.5], 'vys-required'));
+  h.push(sliderField('horizon', 'Horizont v letech', '', [1,15,1], 'vys-horizon'));
+  if(m==='rev'){
+    h.push(sliderField('rev.shareChange', 'Roční změna počtu akcií', '%', [-5,5,0.1], 'vys-sharechange'));
+    h.push(plainField('rev.endMargin', 'Čistá marže na konci horizontu', '%', 'vys-margin', 'nepovinné'));
+  }
+  $('#assumpFields').innerHTML = h.join('');
+  $('#assumpTitle').textContent = 'Předpoklady pro metodu '+mt.label;
+  $$('#assumpFields input[type=range]').forEach(paintRange);
+  $$('#assumpFields input[data-num]').forEach(validateEl);
+}
+function paintRange(el){ var mn=+el.min, mx=+el.max, v=+el.value; el.style.setProperty('--p', ((v-mn)/(mx-mn)*100)+'%'); }
+function validateEl(el){
+  if(!el.hasAttribute('data-num')) return;
+  var box=el.closest('.inp'); var bad = el.value.trim()!=='' && !isFinite(num(el.value));
+  if(box) box.classList.toggle('bad', bad);
+  el.setAttribute('aria-invalid', bad?'true':'false');
+}
+
+function applyInputs(){
+  $$('[data-k]').forEach(function(el){
+    if(el.closest('#assumpFields')) return;
+    var v=getP(S, el.dataset.k);
+    if(el.type==='checkbox') el.checked=!!v; else el.value = v==null?'':v;
+    validateEl(el);
+  });
+  $$('input[name=method]').forEach(function(r){ r.checked = r.value===S.method; });
+  buildAssump();
+}
+
+/* Vykreslení */
+var lastRes=null;
+function render(){
+  var m=S.method, mt=MET[m], res=compute(S,m); lastRes=res;
+  $$('.cur-sym').forEach(function(e){ e.textContent=sym(); });
+  $$('.mcard').forEach(function(c){ c.classList.toggle('on', c.dataset.method===m); });
+  renderCards();
+
+  var P0=num(S.price), sh=num(S.shares);
+  $('#mcap').textContent = (P0>0 && sh>0) ? 'Tržní kapitalizace: '+nf(P0*sh,2)+'\u00a0mld.\u00a0'+sym() : '';
+
+  $('#rPrice').textContent = P0>0 ? money(P0) : '—';
+  $('#rPriceSub').textContent = 'data k '+dateCs(dateObj());
+
+  if(res.ok){
+    var up = res.fv/res.P0 - 1;
+    $('#rFair').textContent = money(res.fv);
+    $('#rFairSub').innerHTML = pill(up, pct(up,2,true))+' vůči aktuální ceně';
+    $('#rIrr').textContent = pct(res.irr,2,true);
+    $('#rIrrSub').innerHTML = pill(res.irr-res.r, pp(res.irr-res.r))+' proti požadovaným '+pct(res.r,2);
+    $('#rTargetLab').textContent = 'Cena '+za(res.n);
+    $('#rTarget').textContent = money(res.Pn);
+    var q = qLabel(res.n);
+    $('#rTargetSub').textContent = (m==='rev'?'Tržby na akcii':mt.short)+' '+money(res.metricN)+' × '+mt.mult+' '+multT(res.M)+' ('+q+')';
+
+    var lead = m==='eps' ? 'Při růstu EPS <b>'+pct(res.g,2)+'</b> ročně bude EPS '+za(res.n)+' <b>'+money(res.metricN)+'</b>.'
+      : m==='fcf' ? 'Při růstu FCF na akcii <b>'+pct(res.g,2)+'</b> ročně bude FCF na akcii '+za(res.n)+' <b>'+money(res.metricN)+'</b>.'
+      : 'Při růstu tržeb <b>'+pct(res.g,2)+'</b> ročně'+(res.shareCh!==0?' a změně počtu akcií '+pct(res.shareCh,1,true)+' ročně':'')+' budou tržby na akcii '+za(res.n)+' <b>'+money(res.metricN)+'</b>.';
+    $('#rText').innerHTML = lead+' Při '+mt.mult+' '+multT(res.M)+' to odpovídá ceně <b>'+money(res.Pn)+'</b>. Po diskontování požadovaným zhodnocením '+pct(res.r,2)+' ročně je férová cena dnes <b>'+money(res.fv)+'</b>'+
+      (res.d>0 ? ', z toho '+money(res.pvDiv)+' tvoří současná hodnota dividend.' : '.');
+
+    var ig = impliedGrowth(S,m), igTxt;
+    var subj = m==='rev' ? 'tržby' : mt.gen;
+    if(!isFinite(ig.v)) igTxt='';
+    else if(ig.below) igTxt='Aktuální cena by byla férová i při poklesu '+subj+' o více než 95 % ročně.';
+    else if(ig.above) igTxt='Aby byla aktuální cena férová, musel'+(m==='rev'?'y by tržby':'o by '+subj)+' růst o více než 300 % ročně.';
+    else igTxt='Aktuální cena '+money(res.P0)+' je férová, pokud '+subj+' '+mt.verb+' o <b>'+pct(ig.v,2)+'</b> ročně (při '+mt.mult+' '+multT(res.M)+' na konci horizontu a požadovaném zhodnocení '+pct(res.r,1)+'). Tomu se říká implikovaný růst.';
+    $('#rImplied').innerHTML = igTxt;
+  } else {
+    ['#rFair','#rIrr','#rTarget'].forEach(function(s){ $(s).textContent='—'; });
+    $('#rFairSub').textContent='doplňte chybějící údaje';
+    $('#rIrrSub').textContent=''; $('#rTargetSub').textContent='';
+    $('#rTargetLab').textContent='Cena na konci horizontu';
+    $('#rText').textContent=res.errs[0]||''; $('#rImplied').textContent='';
+  }
+
+  renderCmp();
+  drawChart(res);
+  renderDecomp(res);
+  renderWarns(res);
+  renderSens(res);
+  renderBar(res);
+}
+
+function renderCards(){
+  var P0=num(S.price);
+  var e=num(S.eps.base);
+  $('#c-eps-mult').textContent = (P0>0 && e>0) ? mult(P0/e) : (e<=0 ? 'nelze, EPS ≤ 0' : '—');
+  var f=num(S.fcf.base), s=num(S.fcf.sbc), useS = S.fcf.subtractSbc && isFinite(s);
+  var fu = f - (useS ? s : 0);
+  $('#c-fcf-ylab').textContent = useS ? 'FCF výnos po SBC' : 'FCF výnos';
+  $('#c-fcf-used').textContent = useS && isFinite(f) ? 'počítá se s '+money(fu) : '';
+  $('#c-fcf-yield').innerHTML = (P0>0 && isFinite(fu)) ? pct(fu/P0,2) : '—';
+  $('#c-fcf-sbc').textContent = (isFinite(s) && f>0) ? pct(s/f,1) : '—';
+  $('#c-fcf-mult').textContent = (P0>0 && fu>0) ? mult(P0/fu) : (isFinite(fu) && fu<=0 ? 'nelze, FCF ≤ 0' : '—');
+  var rv=num(S.rev.base), sh=num(S.shares);
+  var rps = rv/sh;
+  $('#c-rev-rps').textContent = (rv>0 && sh>0) ? money(rps) : (sh>0 ? '—' : 'chybí počet akcií');
+  $('#c-rev-mult').textContent = (P0>0 && rps>0) ? mult(P0/rps) : '—';
+}
+
+function renderCmp(){
+  var h='<span class="caption cl">Férová cena podle metod</span>';
+  ['eps','fcf','rev'].forEach(function(k){
+    var x=compute(S,k);
+    h+='<button type="button" class="cmpc'+(k===S.method?' on':'')+'" data-go="'+k+'" aria-pressed="'+(k===S.method)+'"><span class="caption">'+MET[k].label+'</span><b>'+(x.ok?money(x.fv):'—')+'</b></button>';
+  });
+  $('#cmp').innerHTML=h;
+}
+
+function qLabel(i){ var d=dateObj(); var q=Math.floor(d.getMonth()/3)+1; return 'Q'+q+' '+(d.getFullYear()+i); }
+
+function niceTicks(lo,hi,count){
+  var span=hi-lo, raw=span/count, mag=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/mag;
+  var step=(f<1.5?1:f<3?2:f<7?5:10)*mag;
+  var a=Math.floor(lo/step)*step, b=Math.ceil(hi/step)*step, t=[];
+  for(var v=a; v<=b+step*1e-6; v+=step) t.push(Math.round(v/step)*step);
+  return { t:t, step:step };
+}
+
+function drawChart(res){
+  var box=$('#chart');
+  if(!res.ok){ box.innerHTML='<p class="empty small">Graf se zobrazí po doplnění chybějících údajů.</p>'; $('#chartCap').textContent=''; return; }
+  var W=Math.max(300, Math.floor(box.clientWidth)), narrow=W<600, H=narrow?260:340;
+  var pad={ l:narrow?48:62, r:narrow?30:44, t:34, b:34 }, n=res.n, pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  var ex=[], rq=[];
+  for(var t=0;t<=n;t++){ ex.push(res.P0*Math.pow(1+res.priceCagr,t)); rq.push(res.P0*Math.pow(1+res.r,t)); }
+  var all=ex.concat(rq), mn=Math.min.apply(null,all), mx=Math.max.apply(null,all);
+  var span=(mx-mn)||mx*0.2||1, lo=mn-span*0.12, hi=mx+span*0.22;
+  if(mn>=0 && lo<0) lo=0;
+  var tk=niceTicks(lo,hi,5), y0=tk.t[0], y1=tk.t[tk.t.length-1];
+  var X=function(i){ return pad.l+i*pw/n; }, Y=function(v){ return pad.t+(1-(v-y0)/(y1-y0))*ph; };
+  var axd = tk.step>=1?0:(tk.step>=0.1?1:2);
+  var lbl = function(v){ return (v>=20?nf(v,0):nf(v,2))+'\u00a0'+sym(); };
+  var pillSvg=function(x,y,text,cls){
+    var w=text.length*7+14, h=20, rx=x-w/2;
+    if(rx+w>W-2) rx=W-2-w; if(rx<2) rx=2;
+    return '<g class="'+cls+'"><rect x="'+rx.toFixed(1)+'" y="'+(y-h/2).toFixed(1)+'" width="'+w+'" height="'+h+'" rx="4"/><text x="'+(rx+w/2).toFixed(1)+'" y="'+(y+4).toFixed(1)+'" text-anchor="middle">'+text+'</text></g>';
+  };
+  var aria='Graf: očekávaná cena roste z '+money(res.P0)+' na '+money(res.Pn)+' '+za(n)+'. Cena potřebná pro požadované zhodnocení '+pct(res.r,1)+' by byla '+money(rq[n])+'.';
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+esc(aria)+'">';
+  tk.t.forEach(function(v){
+    var yy=Y(v).toFixed(1);
+    s+='<line class="g" x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+yy+'" y2="'+yy+'" stroke-dasharray="3 4"/>';
+    s+='<text class="ax" x="'+(pad.l-10)+'" y="'+(+yy+4)+'" text-anchor="end">'+nf(v,axd)+'\u00a0'+sym()+'</text>';
+  });
+  var every=Math.max(1, Math.ceil((n+1)/Math.max(1,Math.floor(pw/74))));
+  for(var i=0;i<=n;i++){
+    if(i%every!==0 && i!==n) continue;
+    if(i!==n && n-i<every && i!==0) continue;
+    s+='<text class="ax" x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+qLabel(i)+'</text>';
+  }
+  var pts=function(arr){ return arr.map(function(v,i){ return X(i).toFixed(1)+','+Y(v).toFixed(1); }).join(' '); };
+  s+='<polyline class="req" points="'+pts(rq)+'"/>';
+  s+='<polyline class="exp" points="'+pts(ex)+'"/>';
+  s+='<circle class="dotm" cx="'+X(n).toFixed(1)+'" cy="'+Y(rq[n]).toFixed(1)+'" r="4.5"/>';
+  ex.forEach(function(v,i){ s+='<circle class="dot" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="5"/>'; });
+  var lEvery = Math.max(1, Math.ceil(64/(pw/n)));
+  var expAbove = ex[n] >= rq[n];
+  ex.forEach(function(v,i){
+    if(i!==n && i%lEvery!==0) return;
+    var above = i===n ? expAbove : true;
+    s+=pillSvg(X(i), Y(v)+(above?-18:18), lbl(v), 'lb');
+  });
+  s+=pillSvg(X(n), Y(rq[n])+(expAbove?18:-18), lbl(rq[n]), 'lbm');
+  s+='</svg>';
+  box.innerHTML=s;
+  $('#lgReq').textContent='Cena potřebná pro požadované zhodnocení '+pct(res.r,1)+' ročně'+(res.d>0?' (bez dividend)':'');
+  $('#chartCap').textContent='Výpočet z vašich předpokladů, data k '+dateCs(dateObj())+'. Průběh mezi dneškem a cílovým rokem je rozložený rovnoměrně; skutečná cena kolísá. Nejde o předpověď.';
+}
+
+function renderDecomp(res){
+  var box=$('#decomp');
+  if(!res.ok){ box.innerHTML='<p class="small muted">Rozklad se zobrazí po doplnění chybějících údajů.</p>'; return; }
+  var mt=MET[res.method];
+  var divC = res.irr - res.priceCagr;
+  var rows=[
+    [(res.method==='rev'?'Růst tržeb na akcii':'Růst '+mt.short), res.gps],
+    ['Změna '+mt.mult+' ('+mult(res.curMult)+' → '+multT(res.M)+')', res.multCh],
+    ['Dividendy'+(res.d>0?' (přibližně)':''), divC]
+  ];
+  var tot=['Očekávané zhodnocení ročně', res.irr];
+  var mx=Math.max.apply(null, rows.concat([tot]).map(function(r){ return Math.abs(r[1]); }).concat([0.0001]));
+  var bar=function(v){
+    var w=Math.min(50, Math.abs(v)/mx*50);
+    return '<div class="bar" aria-hidden="true"><i class="'+(v>=0?'pos':'neg')+'" style="'+(v>=0?'left:50%':'right:50%')+';width:'+w.toFixed(2)+'%"></i></div>';
+  };
+  var h='<div class="dc">';
+  rows.forEach(function(r){ h+='<div>'+r[0]+'</div>'+bar(r[1])+'<div class="v">'+pct(r[1],2,true)+'</div>'; });
+  h+='<div class="tot">'+tot[0]+'</div><div class="tot">'+bar(tot[1])+'</div><div class="v tot">'+pct(tot[1],2,true)+'</div>';
+  h+='</div>';
+  h+='<p class="dcnote small muted">Rozdíl proti požadovanému zhodnocení '+pct(res.r,2)+': '+pill(res.irr-res.r, pp(res.irr-res.r))+'<br>Složky se násobí, nesčítají, proto jejich součet nemusí přesně sedět.'+
+     (res.multCh>0.002 ? ' Část zhodnocení stojí na tom, že trh bude firmu oceňovat dráž než dnes.' : (res.multCh<-0.002 ? ' Pokles násobku část růstu firmy „sní“.' : ''))+'</p>';
+  box.innerHTML=h;
+}
+
+function renderWarns(res){
+  var w=warnings(S,S.method,res);
+  var lab={err:'Chyba',warn:'Pozor',info:'Info'};
+  if(!w.length) w=[['info','Nic nevybočuje z běžného rozmezí. To ještě neznamená, že předpoklady jsou správné – podívejte se na tabulku citlivosti.']];
+  var order={err:0,warn:1,info:2};
+  w.sort(function(a,b){ return order[a[0]]-order[b[0]]; });
+  $('#warns').innerHTML = w.map(function(x){ return '<li><span class="badge '+x[0]+'">'+lab[x[0]]+'</span><span>'+x[1]+'</span></li>'; }).join('');
+}
+
+function renderSens(res){
+  var tb=$('#sens');
+  if(!res.ok){ tb.innerHTML='<tbody><tr><td style="text-align:left">Tabulka se zobrazí po doplnění chybějících údajů.</td></tr></tbody>'; return; }
+  var mt=MET[res.method], gB=res.g*100, MB=res.M;
+  var gs=[-4,-2,0,2,4].map(function(x){ return gB+x; });
+  var dec = MB<3 ? 2 : 1;
+  var ms=[0.7,0.85,1,1.15,1.3].map(function(f){ return f===1?MB:Math.round(MB*f*Math.pow(10,dec))/Math.pow(10,dec); });
+  var h='<thead><tr><th scope="col" style="text-align:left">Růst \\ '+mt.mult+'</th>';
+  ms.forEach(function(M,j){ h+='<th scope="col"'+(j===2?' class="cur"':'')+'>'+mt.mult+' '+multT(M)+'</th>'; });
+  h+='</tr></thead><tbody>';
+  gs.forEach(function(g,i){
+    h+='<tr><th scope="row"'+(i===2?' class="cur"':'')+'>'+pct(g/100,1)+'</th>';
+    ms.forEach(function(M,j){
+      var x=compute(S,res.method,{g:g,M:M});
+      if(!x.ok){ h+='<td>—</td>'; return; }
+      var up=x.fv/x.P0-1, cls=(Math.abs(up)<0.0005?'':(up>0?'pos':'neg'))+(i===2&&j===2?' cur':'');
+      h+='<td class="'+cls+'"><b>'+money(x.fv)+'</b><span>'+pct(up,1,true)+'</span></td>';
+    });
+    h+='</tr>';
+  });
+  tb.innerHTML=h+'</tbody>';
+}
+
+function renderBar(res){
+  var nm=(S.name||'').trim();
+  var h='<span class="sp">'+(nm?esc(nm)+', ':'')+'metoda '+MET[S.method].label+'</span>';
+  if(res.ok){
+    var up=res.fv/res.P0-1;
+    h+='<span class="sp">Férová cena <b>'+money(res.fv)+'</b>'+pill(up,pct(up,1,true))+'</span>';
+    h+='<span class="sp">Zhodnocení <b>'+pct(res.irr,2,true)+'</b> ročně</span>';
+  } else h+='<span class="sp">Doplňte chybějící údaje</span>';
+  h+='<a href="#results" class="small">Zobrazit výsledek</a>';
+  $('#sbIn').innerHTML=h;
+}
+
+/* Události */
+var saveT=null, rafP=false;
+function schedule(){
+  if(!rafP){ rafP=true; requestAnimationFrame(function(){ rafP=false; render(); }); }
+  clearTimeout(saveT); saveT=setTimeout(function(){ lsSet(LS_STATE,S); }, 300);
+}
+function onEdit(e){
+  var el=e.target, k=el.dataset && el.dataset.k; if(!k) return;
+  if(el.type==='checkbox'){ setP(S,k,el.checked); }
+  else if(el.type==='range'){
+    var v=fmtIn(+el.value); setP(S,k,v); paintRange(el);
+    var t=el.parentNode.querySelector('input[data-num]'); if(t){ t.value=v; validateEl(t); }
+  } else {
+    setP(S,k,el.value); validateEl(el);
+    var rg=el.closest('.field') && el.closest('.field').querySelector('input[type=range]');
+    if(rg){ var nv=num(el.value); if(isFinite(nv)){ rg.value=Math.min(+rg.max,Math.max(+rg.min,nv)); paintRange(rg); } }
+  }
+  schedule();
+}
+document.addEventListener('input', onEdit);
+document.addEventListener('change', function(e){ if(e.target.tagName==='SELECT' && e.target.dataset.k) onEdit(e); if(e.target.type==='checkbox' || e.target.type==='date') onEdit(e); });
+
+document.addEventListener('keydown', function(e){
+  var el=e.target; if(!el.matches || !el.matches('input[data-num]')) return;
+  if(e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+  var st=+(el.dataset.step||1), v=num(el.value); if(!isFinite(v)) v=0;
+  e.preventDefault();
+  v = Math.round((v + (e.key==='ArrowUp'?st:-st))*1000)/1000;
+  el.value=fmtIn(v);
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+});
+
+function setMethod(m){
+  if(!MET[m] || m===S.method) return;
+  S.method=m;
+  $$('input[name=method]').forEach(function(r){ r.checked=r.value===m; });
+  buildAssump(); schedule();
+}
+$$('input[name=method]').forEach(function(r){ r.addEventListener('change', function(){ if(r.checked) setMethod(r.value); }); });
+$$('.mcard').forEach(function(c){
+  c.addEventListener('click', function(e){ if(e.target.closest('input,select,a,.inp,.chk')) return; setMethod(c.dataset.method); });
+});
+$('#cmp').addEventListener('click', function(e){ var b=e.target.closest('[data-go]'); if(b) setMethod(b.dataset.go); });
+
+document.addEventListener('click', function(e){
+  var a=e.target.closest('a[href^="#"]'); if(!a) return;
+  var id=a.getAttribute('href').slice(1), t=document.getElementById(id); if(!t) return;
+  e.preventDefault();
+  if(t.tagName==='DETAILS') t.open=true;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  t.scrollIntoView({ behavior: reduce?'auto':'smooth', block:'start' });
+  var f = t.tagName==='DETAILS' ? t.querySelector('summary') : t;
+  if(f){ if(!f.hasAttribute('tabindex') && f.tagName!=='SUMMARY') f.setAttribute('tabindex','-1'); setTimeout(function(){ f.focus({preventScroll:true}); }, reduce?0:400); }
+});
+
+/* Scénáře */
+function scen(){ return lsGet(LS_SCEN) || {}; }
+function status(t){ $('#status').textContent=t; }
+function refreshScen(sel){
+  var sc=scen(), names=Object.keys(sc).sort(function(a,b){ return a.localeCompare(b,'cs'); });
+  $('#scenSel').innerHTML='<option value="">'+(names.length?'Vyberte scénář':'Zatím žádné')+'</option>'+names.map(function(n){ return '<option'+(n===sel?' selected':'')+' value="'+esc(n)+'">'+esc(n)+'</option>'; }).join('');
+  $('#delBtn').disabled=!sel;
+}
+$('#saveBtn').addEventListener('click', function(){
+  var nm=(S.name||'').trim();
+  if(!nm){ status('Nejdřív vyplňte název firmy nebo ticker, scénář se uloží pod ním.'); $('#f-name').focus(); return; }
+  var sc=scen(); var existed=!!sc[nm]; sc[nm]=clone(S); lsSet(LS_SCEN,sc); refreshScen(nm);
+  status((existed?'Scénář „'+nm+'“ přepsán.':'Scénář „'+nm+'“ uložen.')+' Je uložený jen v tomto prohlížeči.');
+});
+$('#scenSel').addEventListener('change', function(e){
+  var v=e.target.value; $('#delBtn').disabled=!v; if(!v) return;
+  var sc=scen(); if(!sc[v]) return;
+  S=merge(DEFAULTS, sc[v]); applyInputs(); render(); lsSet(LS_STATE,S);
+  status('Načten scénář „'+v+'“.');
+});
+$('#delBtn').addEventListener('click', function(){
+  var v=$('#scenSel').value; if(!v) return;
+  var sc=scen(); delete sc[v]; lsSet(LS_SCEN,sc); refreshScen(''); status('Scénář „'+v+'“ smazán.');
+});
+$('#resetBtn').addEventListener('click', function(){
+  S=clone(DEFAULTS); S.date=todayIso(); applyInputs(); render(); lsSet(LS_STATE,S); refreshScen(''); status('Obnovena ukázková čísla.');
+});
+
+/* Lišta s výsledkem */
+if('IntersectionObserver' in window){
+  var io=new IntersectionObserver(function(en){ en.forEach(function(x){ $('#sbar').classList.toggle('show', !x.isIntersecting); }); }, { threshold:0.05 });
+  io.observe($('#results'));
+}
+if('ResizeObserver' in window){
+  var lw=0;
+  new ResizeObserver(function(){ var w=$('#chart').clientWidth; if(Math.abs(w-lw)>2 && lastRes){ lw=w; drawChart(lastRes); } }).observe($('#chart'));
+}
+
+applyInputs(); refreshScen(''); render();
+
+/* Instalace a offline režim */
+var deferredPrompt=null, installBtn=$('#installBtn');
+var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true;
+window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; if(!standalone) installBtn.hidden=false; });
+installBtn.addEventListener('click', function(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(){ deferredPrompt=null; installBtn.hidden=true; });
+});
+window.addEventListener('appinstalled', function(){ installBtn.hidden=true; status('Aplikace je nainstalovaná.'); });
+window.addEventListener('offline', function(){ status('Jste offline. Kalkulačka funguje dál, jen písmo se může zobrazit náhradní.'); });
+window.addEventListener('online', function(){ status(''); });
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+})();
+</script>
+</body>
+</html>
